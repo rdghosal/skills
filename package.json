@@ -1,0 +1,11 @@
+{
+  "name": "@rdghosal/skills",
+  "version": "1.0.0",
+  "description": "Agent skills for pi, opencode, and other AI coding assistants",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdghosal/skills.git"
+  },
+  "keywords": ["agent", "skills", "pi", "opencode", "ai", "coding-assistant"]
+}

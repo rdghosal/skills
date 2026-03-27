@@ -1,0 +1,202 @@
+# Markdownlint Configuration
+# https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Default state for all rules
+default: true
+
+# MD001 - Heading levels should only increment by one level at a time
+# Ensures proper heading hierarchy (e.g., don't jump from H1 to H3)
+MD001: true
+
+# MD003 - Heading style
+# "atx" means using # for headings (e.g., ## Heading)
+# Alternative is "setext" which uses underlines
+MD003:
+  style: "atx"
+
+# MD004 - Unordered list style
+# "dash" means using - for bullet points
+# Alternatives: "asterisk" (*), "plus" (+), "consistent"
+MD004:
+  style: "dash"
+
+# MD005 - Inconsistent indentation for list items at the same level
+# Ensures list items at the same nesting level have consistent indentation
+MD005: true
+
+# MD006 - Consider starting bulleted lists at the beginning of the line
+# Lists should not be indented more than 2 spaces
+MD007:
+  indent: 2
+
+# MD009 - Trailing spaces
+# Allows trailing spaces (often used for line breaks in Markdown)
+MD009:
+  br_spaces: 2
+
+# MD010 - Hard tabs
+# No hard tabs (use spaces instead)
+MD010: true
+
+# MD011 - Reversed link syntax
+# Catches links with reversed [] and () syntax
+MD011: true
+
+# MD012 - Multiple consecutive blank lines
+# Limits blank lines to 1 (or specified maximum)
+MD012:
+  maximum: 1
+
+# MD013 - Line length
+# Disabled - we don't want to enforce line length limits in Markdown
+MD013: false
+
+# MD014 - Dollar signs used before commands without showing output
+# Avoids showing $ before commands unless showing output
+MD014: true
+
+# MD018 - No space after hash on atx style heading
+# Requires space after # in headings (e.g., "# Heading" not "#Heading")
+MD018: true
+
+# MD019 - Multiple spaces after hash on atx style heading
+# Only one space after # in headings
+MD019: true
+
+# MD020 - No space inside hashes on closed atx style heading
+# No spaces inside ### on each side of heading text
+MD020: true
+
+# MD021 - Multiple spaces inside hashes on closed atx style heading
+MD021: true
+
+# MD022 - Headings should be surrounded by blank lines
+MD022: true
+
+# MD023 - Headings must start at the beginning of the line
+MD023: true
+
+# MD024 - Multiple headings with the same content
+# Only warns for siblings (same level), not across different levels
+MD024:
+  siblings_only: true
+
+# MD025 - Multiple top-level headings in the same document
+# Only one H1 allowed per document
+MD025: true
+
+# MD026 - Trailing punctuation in heading
+# Headings shouldn't end with punctuation: .,;:!
+MD026:
+  punctuation: ".,;:!"
+
+# MD027 - Multiple spaces after blockquote symbol
+MD027: true
+
+# MD028 - Blank line inside blockquote
+MD028: true
+
+# MD029 - Ordered list item prefix
+# "ordered" means 1. 2. 3. (not 1. 1. 1.)
+MD029:
+  style: "ordered"
+
+# MD030 - Spaces after list markers
+# Configures spacing after bullet/number in lists
+MD030:
+  ul_single: 1    # Unordered list, single line: 1 space after -
+  ol_single: 2    # Ordered list, single line: 2 spaces after 1.
+  ul_multi: 2     # Unordered list, multiple lines: 2 spaces after -
+  ol_multi: 2     # Ordered list, multiple lines: 2 spaces after 1.
+
+# MD031 - Fenced code blocks should be surrounded by blank lines
+MD031: true
+
+# MD032 - Lists should be surrounded by blank lines
+MD032: true
+
+# MD033 - Inline HTML
+# Disabled - we allow inline HTML in Markdown
+MD033: false
+
+# MD034 - Bare URL used
+# URLs should be wrapped in <> or []() syntax
+MD034: true
+
+# MD035 - Horizontal rule style
+# Consistent horizontal rule style (---)
+MD035:
+  style: "---"
+
+# MD036 - Emphasis used instead of a heading
+# Don't use **bold** or *italic* as headings
+MD036: true
+
+# MD037 - Spaces inside emphasis markers
+# No spaces inside **bold** or *italic*
+MD037: true
+
+# MD038 - Spaces inside code block elements
+# No spaces inside `code`
+MD038: true
+
+# MD039 - Spaces inside link text
+# No spaces inside [link text](url)
+MD039: true
+
+# MD040 - Fenced code blocks should have a language specified
+# Disabled - we allow code blocks without language specification
+MD040: false
+
+# MD041 - First line in a file should be a top-level heading
+# Disabled - not all files need to start with H1
+MD041: false
+
+# MD042 - No empty links
+MD042: true
+
+# MD043 - Required heading structure
+# Disabled - we don't enforce specific heading structure
+MD043: false
+
+# MD044 - Proper names should have the correct capitalization
+# Checks for consistent capitalization of proper names
+MD044: true
+
+# MD045 - Images should have alternate text (alt text)
+# Accessibility: all images need alt text
+MD045: true
+
+# MD046 - Code block style
+# "fenced" means using ``` instead of indentation
+MD046:
+  style: "fenced"
+
+# MD047 - Files should end with a single newline character
+MD047: true
+
+# MD048 - Code fence style
+# "backtick" means using ``` instead of ~~~
+MD048:
+  style: "backtick"
+
+# MD049 - Emphasis style
+# "underscore" means using _italic_ instead of *italic*
+MD049:
+  style: "underscore"
+
+# MD050 - Strong style
+# "asterisk" means using **bold** instead of __bold__
+MD050:
+  style: "asterisk"
+
+# MD051 - Link fragments should be valid
+# Checks that heading anchors in links are valid
+MD051: true
+
+# MD052 - Reference links should use labels that are defined
+MD052: true
+
+# MD053 - Link and image reference definitions should be needed
+# No unused reference definitions
+MD053: true
