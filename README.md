@@ -25,6 +25,34 @@ npm install @rdghosal/skills
 
 ## Skills
 
+### Design & UI
+
+| Skill | Description |
+|-------|-------------|
+| adapt | Adapt designs to work across different screen sizes, devices, contexts, or platforms |
+| animate | Enhance with purposeful animations, micro-interactions, and motion effects |
+| arrange | Improve layout, spacing, and visual rhythm |
+| audit | Comprehensive audit of accessibility, performance, theming, and responsive design |
+| bolder | Amplify safe or boring designs to make them more visually interesting |
+| clarify | Improve unclear UX copy, error messages, microcopy, labels, and instructions |
+| colorize | Add strategic color to features that lack visual interest |
+| critique | Evaluate design effectiveness from a UX perspective with actionable feedback |
+| delight | Add moments of joy, personality, and unexpected touches |
+| distill | Strip designs to their essence by removing unnecessary complexity |
+| extract | Extract and consolidate reusable components, design tokens, and patterns |
+| frontend-design | Create distinctive, production-grade frontend interfaces with high design quality |
+| harden | Improve interface resilience through better error handling and edge case management |
+| normalize | Normalize design to match your design system and ensure consistency |
+| onboard | Design or improve onboarding flows, empty states, and first-time user experiences |
+| optimize | Improve interface performance across loading speed, rendering, and bundle size |
+| overdrive | Push interfaces past conventional limits with technically ambitious implementations |
+| polish | Final quality pass before shipping — fixes alignment, spacing, and consistency |
+| quieter | Tone down overly bold or visually aggressive designs |
+| teach-impeccable | One-time setup that gathers design context and saves it to your AI config |
+| typeset | Improve typography by fixing font choices, hierarchy, and readability |
+
+### Planning & Development
+
 | Skill | Description |
 |-------|-------------|
 | design-an-interface | Generate multiple radically different interface designs |
