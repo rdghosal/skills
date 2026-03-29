@@ -10,6 +10,7 @@ Agent skills for AI coding assistants.
 ## Installation
 
 ### Clone and symlink (recommended for personal use)
+
 ```bash
 git clone git@github.com:rdghosal/skills.git ~/code/skills
 ln -s ~/code/skills ~/.config/pi/agent/skills
@@ -17,6 +18,7 @@ ln -s ~/code/skills ~/.config/opencode/skills
 ```
 
 ### As an NPM Package
+
 ```bash
 npm install @rdghosal/skills
 ```
@@ -28,6 +30,7 @@ npm install @rdghosal/skills
 | design-an-interface | Generate multiple radically different interface designs |
 | grill-me | Interview user relentlessly about a plan or design |
 | improve-codebase-architecture | Find architectural improvement opportunities |
+| init-pre-commit | Initialize pre-commit configuration with linting, formatting, complexity checks |
 | prd-to-plan | Turn a PRD into a multi-phase implementation plan |
 | prd-to-todos | Break a PRD into independently-grabbable todos |
 | review-and-commit | Review code and organize commits |
@@ -40,6 +43,7 @@ npm install @rdghosal/skills
 ## Development
 
 Install pre-commit hooks:
+
 ```bash
 pre-commit install
 pre-commit run --all-files
