@@ -1,11 +1,11 @@
 ---
 name: init-pre-commit
-description: Initialize pre-commit configuration for a project by analyzing existing files or asking about expected technologies. Creates .pre-commit-config.yaml with linting, formatting, cyclomatic complexity, and conventional commits hooks.
+description: Initialize pre-commit configuration for a project by analyzing existing files or asking about expected technologies. Creates .pre-commit-config.yaml with linting, formatting, security scanning, testing, cyclomatic complexity, and conventional commits hooks.
 ---
 
 # Initialize Pre-Commit Configuration
 
-Initialize a `.pre-commit-config.yaml` for the current project by either analyzing existing files to detect technologies, or asking the user what languages/frameworks are expected. Creates a comprehensive configuration covering linting, formatting, cyclomatic complexity checks, and conventional commits.
+Initialize a `.pre-commit-config.yaml` for the current project by either analyzing existing files to detect technologies, or asking the user what languages/frameworks are expected. Creates a comprehensive configuration covering linting, formatting, security scanning, testing, cyclomatic complexity checks, and conventional commits.
 
 ## When to Use
 
@@ -13,6 +13,8 @@ Initialize a `.pre-commit-config.yaml` for the current project by either analyzi
 - Adding pre-commit to an existing project without pre-commit configuration
 - Standardizing code quality checks across a team
 - Ensuring conventional commits compliance
+- Enforcing security best practices before code lands
+- Running fast tests before every commit
 
 ## Process
 
@@ -263,7 +265,40 @@ entry: cargo fmt --manifest-path api/Cargo.toml -- --check
       - id: terraform_tflint
 ```
 
-### 6. Add Cyclomatic Complexity Checks
+### 6. Add Security Hooks (Secret Scanning)
+
+Secret scanning catches API keys, tokens, and credentials before they enter git history. This is critical to run on every commit because once a secret is committed, it's in the history forever—even if you delete the file.
+
+**Note:** Dependency audits (`cargo audit`, `npm audit`), SAST tools (`semgrep`, `bandit`), and license compliance checks are **not included here**. These belong in CI because:
+- Dependencies change rarely (lockfiles update infrequently)
+- Running on every commit is wasteful
+- New vulnerabilities are discovered over time, not just when you commit
+
+#### Secret Scanning
+
+```yaml
+  # Gitleaks — comprehensive secret scanning
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.23.3
+    hooks:
+      - id: gitleaks
+```
+
+The core configuration already includes `detect-private-key` for basic secret detection. Use `gitleaks` for more comprehensive scanning.
+
+#### Security Hook Summary
+
+| Hook | Purpose | Stage | Speed |
+|------|---------|-------|-------|
+| `detect-private-key` | Basic secret detection | pre-commit | Instant |
+| `gitleaks` | Comprehensive secret scanning | pre-commit | Fast |
+
+**CI-only security checks** (not in pre-commit):
+- `cargo audit` / `npm audit` — Dependency vulnerability scanning
+- `semgrep` / `bandit` — Static application security testing
+- `pip-licenses` / `license-checker` — License compliance
+
+### 7. Add Cyclomatic Complexity Checks
 
 For maintainability, add cyclomatic complexity analysis. Use **lizard** for universal support:
 
@@ -285,7 +320,202 @@ For maintainability, add cyclomatic complexity analysis. Use **lizard** for univ
 - `-w`: Only show warnings
 - `-x`: Exclude test files, generated code, and dependencies
 
-### 7. Additional Maintainability Hooks (Optional)
+### 8. Add Testing Hooks
+
+Run fast tests before every commit to catch regressions early. Only include tests that complete in under 10 seconds.
+
+#### Python Testing
+
+```yaml
+  # Python — run fast tests
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast tests only)
+        language: system
+        entry: pytest -m "not slow" -x -q
+        pass_filenames: false
+        types: [python]
+```
+
+#### Rust Testing
+
+```yaml
+  # Rust — run fast tests
+  - repo: local
+    hooks:
+      - id: cargo-test
+        name: cargo test (fast)
+        language: system
+        entry: cargo test --lib -- --test-threads=4 -q
+        pass_filenames: false
+        types: [rust]
+```
+
+#### TypeScript/JavaScript Testing
+
+```yaml
+  # TypeScript — run fast tests
+  - repo: local
+    hooks:
+      - id: jest-fast
+        name: jest (fast tests)
+        language: system
+        entry: npx jest --testPathPattern="^(?!.*\.slow\.)" --passWithNoTests
+        pass_filenames: false
+        types_or: [ts, tsx, js, jsx]
+```
+
+#### Coverage Threshold Enforcement
+
+Enforce minimum coverage on changed files:
+
+```yaml
+  # Python — coverage threshold
+  - repo: local
+    hooks:
+      - id: coverage-check
+        name: coverage threshold (80%)
+        language: system
+        entry: pytest --cov --cov-fail-under=80 -q
+        pass_filenames: false
+        types: [python]
+```
+
+#### Testing Hook Guidelines
+
+| Guideline | Reason |
+|-----------|--------|
+| **< 10 seconds** | Pre-commit runs on every commit; slow hooks break flow |
+| **Use `-x` flag** | Stop on first failure; faster feedback |
+| **Exclude slow tests** | Mark integration/e2e tests with `@pytest.mark.slow` or similar |
+| **Parallel execution** | Use `--test-threads` or `--maxWorkers` for speed |
+| **CI for full suite** | Run complete test suite in CI, not pre-commit |
+
+### 9. Add Changelog Enforcement
+
+Optionally require CHANGELOG updates for user-facing changes. This integrates with the `update-changelog` skill.
+
+#### Basic Changelog Check
+
+```yaml
+  # Require CHANGELOG update for feat/fix commits
+  - repo: local
+    hooks:
+      - id: changelog-check
+        name: changelog check
+        language: system
+        entry: bash -c '
+          commit_msg=$(cat "$1");
+          if echo "$commit_msg" | grep -qE "^(feat|fix)(\(.+\))?!?:"; then
+            if ! git diff --cached --name-only | grep -q "CHANGELOG"; then
+              echo "ERROR: feat/fix commits require CHANGELOG update";
+              echo "       Add entry or use --no-verify to skip";
+              exit 1;
+            fi;
+          fi
+        '
+        args: [.git/COMMIT_EDITMSG]
+        stages: [commit-msg]
+        pass_filenames: false
+```
+
+#### Changelog with Breaking Change Detection
+
+```yaml
+  # Require CHANGELOG for breaking changes
+  - repo: local
+    hooks:
+      - id: changelog-breaking
+        name: changelog (breaking changes)
+        language: system
+        entry: bash -c '
+          commit_msg=$(cat "$1");
+          if echo "$commit_msg" | grep -qE "^.+!:" || echo "$commit_msg" | grep -q "BREAKING CHANGE:"; then
+            if ! git diff --cached --name-only | grep -q "CHANGELOG"; then
+              echo "ERROR: Breaking changes require CHANGELOG update";
+              exit 1;
+            fi;
+          fi
+        '
+        args: [.git/COMMIT_EDITMSG]
+        stages: [commit-msg]
+        pass_filenames: false
+```
+
+#### Changelog Hook Options
+
+| Mode | When Required | Use Case |
+|------|---------------|----------|
+| **feat/fix only** | `feat:` or `fix:` commits | Standard projects |
+| **Breaking changes** | `!:` or `BREAKING CHANGE:` | Critical changes only |
+| **All user-facing** | `feat|fix|perf|refactor:` | Strict enforcement |
+
+**Tip:** Allow bypass with `--no-verify` for WIP commits, but enforce in CI.
+
+### 10. Add Static Analysis Hooks
+
+These hooks catch issues that linters and formatters miss: typos, SQL problems, and dependency bloat.
+
+#### Spell Checking (`codespell`)
+
+Catches typos in comments, docstrings, and string literals. Fast and catches embarrassing mistakes that linters miss.
+
+```yaml
+  # Spell checking for code and docs
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: [--skip="*.lock,*.min.js,*.min.css,*.snap"]
+```
+
+**Why it's valuable:** Agents often introduce typos in comments and documentation. This catches them immediately.
+
+#### SQL Linting (`sqlfluff`)
+
+For projects with SQL files, migrations, or raw SQL. Catches syntax errors, inconsistent formatting, and some injection-prone patterns.
+
+```yaml
+  # SQL linting and formatting
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 3.2.5
+    hooks:
+      - id: sqlfluff-lint
+        args: [--dialect, "ansi"]
+      - id: sqlfluff-fix
+        args: [--dialect, "ansi"]
+```
+
+**When to add:** Only if the project has `.sql` files or migration directories. If you use an ORM (Prisma, Diesel, SQLAlchemy), SQL injection is largely prevented at the ORM level.
+
+#### Unused Dependencies (`depcheck`)
+
+For Node.js projects. Catches dependencies declared in `package.json` but never imported.
+
+```yaml
+  # Check for unused dependencies
+  - repo: local
+    hooks:
+      - id: depcheck
+        name: depcheck
+        language: system
+        entry: npx depcheck --ignores="@types/*,eslint-config-*"
+        pass_filenames: false
+        files: package\.json$
+```
+
+**Why it's valuable:** Agents often add dependencies while experimenting but may not clean up. This catches unused deps before they accumulate.
+
+#### Static Analysis Hook Summary
+
+| Hook | Purpose | Speed | When to Add |
+|------|---------|-------|-------------|
+| `codespell` | Typos in comments/docs | Fast | All projects |
+| `sqlfluff` | SQL syntax and formatting | Fast | Projects with SQL files |
+| `depcheck` | Unused Node.js dependencies | Medium | Node.js projects |
+
+### 11. Additional Maintainability Hooks (Optional)
 
 The core configuration already includes many essential hooks. Consider these **additional hooks** based on your project's specific needs:
 
@@ -312,7 +542,115 @@ The core configuration already includes many essential hooks. Consider these **a
 
 For comprehensive secret scanning, uncomment the `gitleaks` hook in the core configuration.
 
-### 8. Install and Test
+### 12. Optimize Hook Performance
+
+Slow hooks kill developer productivity. Apply these optimizations to keep pre-commit under 5 seconds.
+
+#### Use `fail_fast` for Critical Hooks
+
+Stop early on critical failures:
+
+```yaml
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        fail_fast: true  # Stop immediately on bad commit message
+```
+
+#### Scope Hooks to Changed Files
+
+Only run hooks on relevant files:
+
+```yaml
+  - repo: local
+    hooks:
+      - id: cargo-clippy
+        name: cargo clippy
+        language: system
+        entry: cargo clippy -- -D warnings
+        pass_filenames: false
+        files: \.rs$  # Only run when Rust files change
+```
+
+#### Use `types_or` for Multiple File Types
+
+More efficient than regex `files:`:
+
+```yaml
+  - repo: local
+    hooks:
+      - id: lizard
+        types_or: [python, rust, javascript, typescript]  # Faster than regex
+```
+
+#### Cache Expensive Operations
+
+For hooks that download dependencies, use environment caching:
+
+```yaml
+  # ESLint with cached dependencies
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.57.1
+    hooks:
+      - id: eslint
+        additional_dependencies:
+          - eslint@8.57.1
+        args: ["--cache", "--cache-location", ".eslintcache"]
+```
+
+#### Parallel Execution
+
+Pre-commit runs hooks in parallel by default. To control concurrency:
+
+```yaml
+# In .pre-commit-config.yaml (top level)
+default_language_version:
+  python: python3.12
+
+# Limit parallel hooks (useful for resource-intensive tools)
+# pre-commit run --config .pre-commit-config.yaml --all-files
+```
+
+Or run manually with parallelism:
+
+```bash
+pre-commit run --all-files --show-diff-on-failure
+```
+
+#### Skip Slow Hooks Locally
+
+For development, skip slow hooks but enforce in CI:
+
+```yaml
+  # Slow hook example — only run manually
+  - repo: local
+    hooks:
+      - id: slow-check
+        name: slow check
+        language: system
+        entry: ./scripts/slow-check.sh
+        stages: [manual]  # Only run with --hook-stage manual
+```
+
+Then in CI:
+
+```bash
+pre-commit run --all-files --hook-stage manual
+```
+
+#### Performance Benchmarks
+
+| Hook Type | Target Time | Optimization |
+|-----------|-------------|--------------|
+| Formatting | < 1s | Use `--check` mode |
+| Linting | < 3s | Scope to changed files |
+| Type checking | < 5s | Incremental mode |
+| Testing | < 10s | Fast tests only |
+
+### 13. Install and Test
 
 After creating the configuration, instruct the user to:
 
@@ -337,6 +675,7 @@ repos:
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
+        fail_fast: true
 
   # General file hygiene and syntax validation
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -363,6 +702,13 @@ repos:
     rev: v8.23.3
     hooks:
       - id: gitleaks
+
+  # Spell checking
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: [--skip="*.lock,*.min.js,*.min.css"]
 
   # Protect main/master branches
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -408,6 +754,35 @@ repos:
         pass_filenames: false
         types_or: [ts, tsx]
 
+  # TypeScript — fast tests
+  - repo: local
+    hooks:
+      - id: jest-fast
+        name: jest (fast tests)
+        language: system
+        entry: bash -c 'cd mobile && npx jest --testPathPattern="^(?!.*\.slow\.)" --passWithNoTests'
+        pass_filenames: false
+        types_or: [ts, tsx]
+
+  # Changelog enforcement for feat/fix commits
+  - repo: local
+    hooks:
+      - id: changelog-check
+        name: changelog check
+        language: system
+        entry: bash -c '
+          commit_msg=$(cat "$1");
+          if echo "$commit_msg" | grep -qE "^(feat|fix)(\(.+\))?!?:"; then
+            if ! git diff --cached --name-only | grep -q "CHANGELOG"; then
+              echo "ERROR: feat/fix commits require CHANGELOG update";
+              exit 1;
+            fi;
+          fi
+        '
+        args: [.git/COMMIT_EDITMSG]
+        stages: [commit-msg]
+        pass_filenames: false
+
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
@@ -417,15 +792,29 @@ ci:
 
 ## Hook Reference Quick Guide
 
-| Language | Formatter | Linter | Complexity | Type Check |
-|----------|-----------|--------|------------|------------|
-| Rust | `cargo fmt` | `cargo clippy` | lizard | N/A |
-| TypeScript | `prettier` | `eslint` | lizard | `tsc --noEmit` |
-| Python | `ruff format` | `ruff` | lizard | `mypy` |
-| Go | `gofmt` | `golangci-lint` | lizard | `go vet` |
-| Shell | `shfmt` | `shellcheck` | N/A | N/A |
-| Markdown | `markdownlint --fix` | `markdownlint` | N/A | N/A |
-| JSON/YAML | `prettier` | `check-json/yaml` | N/A | N/A |
+### Language-Specific Hooks
+
+| Language | Formatter | Linter | Complexity | Type Check | Testing |
+|----------|-----------|--------|------------|------------|---------|
+| Rust | `cargo fmt` | `cargo clippy` | lizard | N/A | `cargo test` |
+| TypeScript | `prettier` | `eslint` | lizard | `tsc --noEmit` | `jest` |
+| Python | `ruff format` | `ruff` | lizard | `mypy` | `pytest` |
+| Go | `gofmt` | `golangci-lint` | lizard | `go vet` | `go test` |
+| Shell | `shfmt` | `shellcheck` | N/A | N/A | N/A |
+| Markdown | `markdownlint --fix` | `markdownlint` | N/A | N/A | N/A |
+| JSON/YAML | `prettier` | `check-json/yaml` | N/A | N/A | N/A |
+
+### Cross-Cutting Hooks
+
+| Hook | Purpose | When to Use |
+|------|---------|-------------|
+| `codespell` | Typos in comments/docs | All projects |
+| `sqlfluff` | SQL syntax and formatting | Projects with SQL files |
+| `depcheck` | Unused Node.js dependencies | Node.js projects |
+| `lizard` | Cyclomatic complexity | All projects |
+| `gitleaks` | Secret scanning | All projects |
+
+**Note:** Security checks (dependency audits, SAST, license compliance) belong in CI, not pre-commit. See section 6 for secret scanning which runs in pre-commit.
 
 ## Best Practices
 
@@ -439,6 +828,14 @@ ci:
 
 5.  **CI integration**: Add the `ci:` section to enable pre-commit.ci or similar services for automated fixes.
 
+6.  **Keep hooks under 5 seconds**: Pre-commit runs on every commit. Slow hooks break developer flow. Move slow checks (full test suite, dependency audits) to CI.
+
+7.  **Use `fail_fast` sparingly**: Only for critical hooks like commit message format. Most hooks should run to completion to show all issues.
+
+8.  **Test before commit, not after**: Run fast tests in pre-commit, full suite in CI. This catches regressions early without blocking commits.
+
+9.  **Security in layers**: Secret scanning (fast) in pre-commit, dependency audits and SAST (slow) in CI.
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -448,3 +845,6 @@ ci:
 | Hook too slow | Add `files:` filter to only run on changed relevant files |
 | Merge conflicts | Run `pre-commit run check-merge-conflict --all-files` |
 | Warnings treated as errors | Add <code>&#124;&#124; true</code> to the entry for warnings-only hooks |
+| Tests fail on unrelated changes | Use `files:` to scope test hooks to changed directories |
+| Changelog check blocking WIP | Use `git commit --no-verify` to bypass |
+| Coverage threshold too strict | Lower threshold or exclude specific files with `--cov-config` |
