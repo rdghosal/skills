@@ -1,16 +1,17 @@
 ---
 name: init-pre-commit
-description: Initialize pre-commit configuration for a project by analyzing existing files or asking about expected technologies. Creates .pre-commit-config.yaml with linting, formatting, security scanning, testing, cyclomatic complexity, and conventional commits hooks.
+description: Initialize or augment pre-commit configuration for a project by analyzing existing files or asking about expected technologies. Creates or updates .pre-commit-config.yaml with linting, formatting, security scanning, testing, cyclomatic complexity, and conventional commits hooks. Never overwrites existing hooks—only adds missing ones.
 ---
 
 # Initialize Pre-Commit Configuration
 
-Initialize a `.pre-commit-config.yaml` for the current project by either analyzing existing files to detect technologies, or asking the user what languages/frameworks are expected. Creates a comprehensive configuration covering linting, formatting, security scanning, testing, cyclomatic complexity checks, and conventional commits.
+Initialize or augment a `.pre-commit-config.yaml` for the current project. If a config exists, parse it and only add hooks that aren't already present. Never alter existing hook behavior or remove hooks the project already uses.
 
 ## When to Use
 
 - Setting up a new project
-- Adding pre-commit to an existing project without pre-commit configuration
+- Adding pre-commit to an existing project
+- Augmenting an existing pre-commit config with additional hooks
 - Standardizing code quality checks across a team
 - Ensuring conventional commits compliance
 - Enforcing security best practices before code lands
@@ -26,7 +27,17 @@ First, check if `.pre-commit-config.yaml` already exists in the project root:
 ls -la .pre-commit-config.yaml 2>/dev/null || echo "No pre-commit config found"
 ```
 
-If it exists, **ask the user if they want to overwrite it or skip**.
+**If it exists**, parse it to identify existing hooks:
+
+```bash
+# Extract existing hook IDs
+grep -E "^\s+- id:" .pre-commit-config.yaml | sed 's/.*- id: //' | sort -u
+
+# Extract existing repos
+grep -E "^\s+- repo:" .pre-commit-config.yaml | sed 's/.*- repo: //' | sort -u
+```
+
+**Do not overwrite or modify existing hooks.** Only add hooks that aren't already configured.
 
 ### 2. Detect Project Technologies
 
@@ -69,59 +80,117 @@ If no clear technology indicators are found, or if the project structure is ambi
 
 > "I don't see clear indicators of specific languages in this project. What languages or technologies are you expecting to use? (e.g., Rust, TypeScript/React, Python, Go, etc.)"
 
-### 4. Generate Pre-Commit Configuration
+### 4. Determine Hooks to Add
 
-Create a `.pre-commit-config.yaml` based on detected/confirmed technologies. Include these **core hooks for all projects**:
+Compare recommended hooks against existing configuration. For each hook category, check if an equivalent already exists:
 
-#### Core Configuration (Always Include)
+| Hook Purpose | Existing Hook Patterns to Check |
+|--------------|-------------------------------|
+| Commit message format | `conventional-pre-commit`, `commitlint` |
+| Trailing whitespace | `trailing-whitespace` |
+| EOF fixer | `end-of-file-fixer` |
+| Secret scanning | `detect-private-key`, `gitleaks`, `ripsecrets` |
+| Formatting (Rust) | `cargo-fmt`, `cargo fmt` |
+| Formatting (Python) | `ruff-format`, `black`, `autopep8` |
+| Formatting (JS/TS) | `prettier` |
+| Linting (Rust) | `cargo-clippy`, `cargo clippy` |
+| Linting (Python) | `ruff`, `flake8`, `pylint` |
+| Linting (JS/TS) | `eslint` |
+| Type checking (TS) | `tsc`, `typescript` |
+| Type checking (Python) | `mypy` |
+| Testing (Python) | `pytest` |
+| Testing (Rust) | `cargo-test`, `cargo test` |
+| Testing (JS/TS) | `jest`, `vitest` |
+| Complexity | `lizard` |
+| Spell checking | `codespell`, `cspell` |
+| SQL linting | `sqlfluff` |
+| Shell linting | `shellcheck` |
+| Markdown linting | `markdownlint` |
 
+**Skip any hook that already has an equivalent.** Report these as "already configured."
+
+### 5. Generate or Augment Configuration
+
+**If no config exists:** Create a new `.pre-commit-config.yaml` with all recommended hooks for detected technologies.
+
+**If config exists:** Append only the missing hooks to the existing configuration. Preserve:
+- Existing `repos` entries (don't modify)
+- Existing hook configurations (don't change args, files, etc.)
+- Existing `ci:` configuration
+- Comments and formatting
+
+#### Example: Augmenting Existing Config
+
+**Before:**
 ```yaml
 repos:
-  # Conventional commit message format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+```
+
+**After (adding missing hooks):**
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+
+  # Added by init-pre-commit skill
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.0.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
 
-  # General file hygiene
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.23.3
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-merge-conflict
-      - id: check-added-large-files
-        args: ["--maxkb=500"]
-      - id: check-case-conflict
-      - id: detect-private-key
-      - id: check-executables-have-shebangs
-      - id: check-shebang-scripts-are-executable
-      # Syntax validation for common config formats
-      - id: check-json
-      - id: check-yaml
-      - id: check-toml
-      # Line ending and encoding consistency
-      - id: mixed-line-ending
-      - id: fix-byte-order-marker
-      # Prevent accidental submodule additions
-      - id: forbid-new-submodules
-
-  # Alternative: Gitleaks for more comprehensive secret scanning
-  # - repo: https://github.com/gitleaks/gitleaks
-  #   rev: v8.23.3
-  #   hooks:
-  #     - id: gitleaks
-
-  # Protect main/master branches from direct commits (optional but recommended for teams)
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: no-commit-to-branch
-        args: [--branch, main, --branch, master]
+      - id: gitleaks
 ```
 
-### 5. Add Language-Specific Hooks
+### 6. Report Results
+
+After generating or augmenting, provide a summary:
+
+```
+Pre-commit configuration updated.
+
+Added (5 hooks):
+  ✓ conventional-pre-commit (commit message format)
+  ✓ gitleaks (secret scanning)
+  ✓ codespell (spell checking)
+  ✓ cargo-clippy (Rust linting)
+  ✓ lizard (cyclomatic complexity)
+
+Already configured (3 hooks):
+  • trailing-whitespace
+  • end-of-file-fixer
+  • prettier
+
+Skipped (not applicable):
+  • sqlfluff (no SQL files found)
+  • depcheck (not a Node.js project)
+```
+
+### 7. Install and Test
+
+After generating or augmenting the configuration, instruct the user to:
+
+```bash
+# Install pre-commit hooks
+pre-commit install
+pre-commit install --hook-type commit-msg
+
+# Test on all files
+pre-commit run --all-files
+```
+
+### 8. Add Language-Specific Hooks
 
 Based on detected technologies, add appropriate hooks:
 
@@ -265,7 +334,7 @@ entry: cargo fmt --manifest-path api/Cargo.toml -- --check
       - id: terraform_tflint
 ```
 
-### 6. Add Security Hooks (Secret Scanning)
+### 9. Add Security Hooks (Secret Scanning)
 
 Secret scanning catches API keys, tokens, and credentials before they enter git history. This is critical to run on every commit because once a secret is committed, it's in the history forever—even if you delete the file.
 
@@ -298,7 +367,7 @@ The core configuration already includes `detect-private-key` for basic secret de
 - `semgrep` / `bandit` — Static application security testing
 - `pip-licenses` / `license-checker` — License compliance
 
-### 7. Add Cyclomatic Complexity Checks
+### 10. Add Cyclomatic Complexity Checks
 
 For maintainability, add cyclomatic complexity analysis. Use **lizard** for universal support:
 
@@ -320,7 +389,7 @@ For maintainability, add cyclomatic complexity analysis. Use **lizard** for univ
 - `-w`: Only show warnings
 - `-x`: Exclude test files, generated code, and dependencies
 
-### 8. Add Testing Hooks
+### 11. Add Testing Hooks
 
 Run fast tests before every commit to catch regressions early. Only include tests that complete in under 10 seconds.
 
@@ -392,7 +461,7 @@ Enforce minimum coverage on changed files:
 | **Parallel execution** | Use `--test-threads` or `--maxWorkers` for speed |
 | **CI for full suite** | Run complete test suite in CI, not pre-commit |
 
-### 9. Add Changelog Enforcement
+### 12. Add Changelog Enforcement
 
 Optionally require CHANGELOG updates for user-facing changes. This integrates with the `update-changelog` skill.
 
@@ -453,7 +522,7 @@ Optionally require CHANGELOG updates for user-facing changes. This integrates wi
 
 **Tip:** Allow bypass with `--no-verify` for WIP commits, but enforce in CI.
 
-### 10. Add Static Analysis Hooks
+### 13. Add Static Analysis Hooks
 
 These hooks catch issues that linters and formatters miss: typos, SQL problems, and dependency bloat.
 
@@ -515,7 +584,7 @@ For Node.js projects. Catches dependencies declared in `package.json` but never 
 | `sqlfluff` | SQL syntax and formatting | Fast | Projects with SQL files |
 | `depcheck` | Unused Node.js dependencies | Medium | Node.js projects |
 
-### 11. Additional Maintainability Hooks (Optional)
+### 14. Additional Maintainability Hooks (Optional)
 
 The core configuration already includes many essential hooks. Consider these **additional hooks** based on your project's specific needs:
 
@@ -542,7 +611,7 @@ The core configuration already includes many essential hooks. Consider these **a
 
 For comprehensive secret scanning, uncomment the `gitleaks` hook in the core configuration.
 
-### 12. Optimize Hook Performance
+### 15. Optimize Hook Performance
 
 Slow hooks kill developer productivity. Apply these optimizations to keep pre-commit under 5 seconds.
 
@@ -649,19 +718,6 @@ pre-commit run --all-files --hook-stage manual
 | Linting | < 3s | Scope to changed files |
 | Type checking | < 5s | Incremental mode |
 | Testing | < 10s | Fast tests only |
-
-### 13. Install and Test
-
-After creating the configuration, instruct the user to:
-
-```bash
-# Install pre-commit hooks
-pre-commit install
-pre-commit install --hook-type commit-msg
-
-# Test on all files
-pre-commit run --all-files
-```
 
 ## Example: Full Multi-Language Configuration
 
