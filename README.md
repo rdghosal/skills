@@ -31,18 +31,11 @@ This repo includes a setup script to install external skill sources:
 | [mattpocock/skills](https://github.com/mattpocock/skills) | `write-a-prd`, `prd-to-plan`, `grill-me`, `design-an-interface`, `tdd`, `improve-codebase-architecture` |
 | [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff) | `tmux`, `uv`, `update-changelog`, `github`, `sentry`, etc. |
 
-## Setup
-
-Run the setup script at the repo root to verify and install all skills:
-
-```bash
-./setup-skills.sh
-```
-
 ## Installation
 
 ```bash
 git clone git@github.com:rdghosal/agentish.git ~/code/agentish
 ln -s ~/code/agentish/skills ~/.config/pi/agent/skills
-cd ~/code/agentish && ./setup-skills.sh
 ```
+
+For external skills (Impeccable, mattpocock, mitsuhiko), see the main repo's setup script.
