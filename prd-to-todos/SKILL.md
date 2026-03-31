@@ -1,6 +1,6 @@
 ---
 name: prd-to-todos
-description: Break a PRD into independently-grabbable Pi todos using tracer-bullet vertical slices. Use when user wants to convert a PRD to todos, create implementation tasks, or break down a PRD into work items.
+description: Break a PRD into independently-grabbable todos using tracer-bullet vertical slices. Use when user wants to convert a PRD to todos, create implementation tasks, or break down a PRD into work items.
 attribution: Inspired by https://github.com/mattpocock/skills (prd-to-issues)
 ---
 
