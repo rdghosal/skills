@@ -1,6 +1,7 @@
 ---
 name: init-pre-commit
 description: Initialize or augment pre-commit configuration for a project by analyzing existing files or asking about expected technologies. Creates or updates .pre-commit-config.yaml with linting, formatting, security scanning, testing, cyclomatic complexity, and conventional commits hooks. Never overwrites existing hooks—only adds missing ones.
+attribution: Inspired by https://github.com/mattpocock/skills (setup-pre-commit)
 ---
 
 # Initialize Pre-Commit Configuration

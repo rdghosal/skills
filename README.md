@@ -1,78 +1,48 @@
 ---
 name: skills
-description: Index of all available agent skills. Browse to discover capabilities for planning, development, and tooling.
+description: Agent skills for Pi coding agent.
 ---
 
-# Skills
+# Agent Skills
 
-Agent skills for AI coding assistants.
+## Custom Skills
+
+| Skill | Description |
+|-------|-------------|
+| **init-pre-commit** | Initialize or augment `.pre-commit-config.yaml` with linting, formatting, security scanning, testing, cyclomatic complexity, and conventional commits hooks. Never overwrites existing hooks—only adds missing ones. |
+| **prd-to-todos** | Break a PRD into independently-grabbable Pi todos using tracer-bullet vertical slices. Outputs to Pi's todo system instead of GitHub issues. |
+| **review-and-commit** | Review code against AGENTS.md conventions, verify compliance with project-specific guidelines, and organize commits following Conventional Commits format. |
+
+### Attribution
+
+| Skill | Inspiration |
+|-------|-------------|
+| init-pre-commit | Inspired by [mattpocock/setup-pre-commit](https://github.com/mattpocock/skills) |
+| prd-to-todos | Inspired by [mattpocock/prd-to-issues](https://github.com/mattpocock/skills) |
+| review-and-commit | Original |
+
+## External Skills
+
+This repo includes a setup script to install external skill sources:
+
+| Source | Skills |
+|--------|--------|
+| [Impeccable](https://impeccable.style) | 21 design commands (`/audit`, `/polish`, `/critique`, etc.) |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | `write-a-prd`, `prd-to-plan`, `grill-me`, `design-an-interface`, `tdd`, `improve-codebase-architecture` |
+| [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff) | `tmux`, `uv`, `update-changelog`, `github`, `sentry`, etc. |
+
+## Setup
+
+Run the setup script at the repo root to verify and install all skills:
+
+```bash
+./setup-skills.sh
+```
 
 ## Installation
 
-### Clone and symlink (recommended for personal use)
-
 ```bash
-git clone git@github.com:rdghosal/skills.git ~/code/skills
-ln -s ~/code/skills ~/.config/pi/agent/skills
-ln -s ~/code/skills ~/.config/opencode/skills
-```
-
-### As an NPM Package
-
-```bash
-npm install @rdghosal/skills
-```
-
-## Skills
-
-### Design & UI
-
-| Skill | Description |
-|-------|-------------|
-| adapt | Adapt designs to work across different screen sizes, devices, contexts, or platforms |
-| animate | Enhance with purposeful animations, micro-interactions, and motion effects |
-| arrange | Improve layout, spacing, and visual rhythm |
-| audit | Comprehensive audit of accessibility, performance, theming, and responsive design |
-| bolder | Amplify safe or boring designs to make them more visually interesting |
-| clarify | Improve unclear UX copy, error messages, microcopy, labels, and instructions |
-| colorize | Add strategic color to features that lack visual interest |
-| critique | Evaluate design effectiveness from a UX perspective with actionable feedback |
-| delight | Add moments of joy, personality, and unexpected touches |
-| distill | Strip designs to their essence by removing unnecessary complexity |
-| extract | Extract and consolidate reusable components, design tokens, and patterns |
-| frontend-design | Create distinctive, production-grade frontend interfaces with high design quality |
-| harden | Improve interface resilience through better error handling and edge case management |
-| normalize | Normalize design to match your design system and ensure consistency |
-| onboard | Design or improve onboarding flows, empty states, and first-time user experiences |
-| optimize | Improve interface performance across loading speed, rendering, and bundle size |
-| overdrive | Push interfaces past conventional limits with technically ambitious implementations |
-| polish | Final quality pass before shipping — fixes alignment, spacing, and consistency |
-| quieter | Tone down overly bold or visually aggressive designs |
-| teach-impeccable | One-time setup that gathers design context and saves it to your AI config |
-| typeset | Improve typography by fixing font choices, hierarchy, and readability |
-
-### Planning & Development
-
-| Skill | Description |
-|-------|-------------|
-| design-an-interface | Generate multiple radically different interface designs |
-| grill-me | Interview user relentlessly about a plan or design |
-| improve-codebase-architecture | Find architectural improvement opportunities |
-| init-pre-commit | Initialize pre-commit configuration with linting, formatting, complexity checks |
-| prd-to-plan | Turn a PRD into a multi-phase implementation plan |
-| prd-to-todos | Break a PRD into independently-grabbable todos |
-| review-and-commit | Review code and organize commits |
-| tdd | Test-driven development with red-green-refactor loop |
-| tmux | Remote control tmux sessions |
-| update-changelog | Update changelogs following conventions |
-| uv | Use uv instead of pip/python/venv |
-| write-a-prd | Create a PRD through user interview |
-
-## Development
-
-Install pre-commit hooks:
-
-```bash
-pre-commit install
-pre-commit run --all-files
+git clone git@github.com:rdghosal/agentish.git ~/code/agentish
+ln -s ~/code/agentish/skills ~/.config/pi/agent/skills
+cd ~/code/agentish && ./setup-skills.sh
 ```
