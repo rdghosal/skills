@@ -16,7 +16,7 @@ Initialize or augment a `.pre-commit-config.yaml` for the current project. If a 
 - Standardizing code quality checks across a team
 - Ensuring conventional commits compliance
 - Enforcing security best practices before code lands
-- Running fast tests before every commit
+- Running tests and type checks as pre-push validation
 
 ## Process
 
@@ -186,9 +186,13 @@ After generating or augmenting the configuration, instruct the user to:
 # Install pre-commit hooks
 pre-commit install
 pre-commit install --hook-type commit-msg
+pre-commit install --hook-type pre-push
 
-# Test on all files
+# Test pre-commit hooks on all files
 pre-commit run --all-files
+
+# Test pre-push hooks (tests, type checks, complexity)
+pre-commit run --all-files --hook-stage pre-push
 ```
 
 ### 8. Add Language-Specific Hooks
@@ -256,13 +260,14 @@ entry: cargo fmt --manifest-path api/Cargo.toml -- --check
         args: [--fix]
       - id: ruff-format
 
-  # Python type checking (if mypy is configured)
+  # Python type checking (pre-push — runs during validation, not every commit)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
       - id: mypy
         additional_dependencies: [types-all]
         args: [--ignore-missing-imports]
+        stages: [pre-push]
 ```
 
 #### Go Projects
@@ -370,7 +375,7 @@ The core configuration already includes `detect-private-key` for basic secret de
 
 ### 10. Add Cyclomatic Complexity Checks
 
-For maintainability, add cyclomatic complexity analysis. Use **lizard** for universal support:
+For maintainability, add cyclomatic complexity analysis. Use **lizard** for universal support. Run as `pre-push` so it doesn't block every commit but is caught during validation:
 
 ```yaml
   # Cyclomatic complexity check
@@ -381,6 +386,7 @@ For maintainability, add cyclomatic complexity analysis. Use **lizard** for univ
         language: system
         entry: lizard -C 15 -w -x "*/tests/*" -x "*/migrations/*" -x "*/node_modules/*" -x "*/target/*" -x "*/dist/*" -x "*/.git/*" -x "*/__pycache__/*"
         pass_filenames: false
+        stages: [pre-push]
         types_or: [python, rust, ts, tsx, javascript, jsx, go, c, cpp, java]
 ```
 
@@ -392,103 +398,66 @@ For maintainability, add cyclomatic complexity analysis. Use **lizard** for univ
 
 ### 11. Add Testing Hooks
 
-Run fast tests before every commit to catch regressions early. Only include tests that complete in under 10 seconds.
+Run tests as `pre-push` hooks so they don't block every commit but are caught during the agent's validation pass (`pre-commit run --all-files --hook-stage pre-push`). Tests should encode meaningful requirements — avoid writing tests just to inflate coverage.
 
 #### Python Testing
 
 ```yaml
-  # Python — run fast tests
+  # Python — run tests
   - repo: local
     hooks:
-      - id: pytest-fast
-        name: pytest (fast tests only)
+      - id: pytest
+        name: pytest
         language: system
-        entry: pytest -m "not slow" -x -q
+        entry: pytest -x -q
         pass_filenames: false
+        stages: [pre-push]
         types: [python]
 ```
 
 #### Rust Testing
 
 ```yaml
-  # Rust — run fast tests
+  # Rust — run tests
   - repo: local
     hooks:
       - id: cargo-test
-        name: cargo test (fast)
+        name: cargo test
         language: system
         entry: cargo test --lib -- --test-threads=4 -q
         pass_filenames: false
+        stages: [pre-push]
         types: [rust]
 ```
 
 #### TypeScript/JavaScript Testing
 
 ```yaml
-  # TypeScript — run fast tests
+  # TypeScript — run tests
   - repo: local
     hooks:
-      - id: jest-fast
-        name: jest (fast tests)
+      - id: jest
+        name: jest
         language: system
-        entry: npx jest --testPathPattern="^(?!.*\.slow\.)" --passWithNoTests
+        entry: npx jest --passWithNoTests
         pass_filenames: false
+        stages: [pre-push]
         types_or: [ts, tsx, js, jsx]
-```
-
-#### Coverage Threshold Enforcement
-
-Enforce minimum coverage on changed files:
-
-```yaml
-  # Python — coverage threshold
-  - repo: local
-    hooks:
-      - id: coverage-check
-        name: coverage threshold (80%)
-        language: system
-        entry: pytest --cov --cov-fail-under=80 -q
-        pass_filenames: false
-        types: [python]
 ```
 
 #### Testing Hook Guidelines
 
 | Guideline | Reason |
 |-----------|--------|
-| **< 10 seconds** | Pre-commit runs on every commit; slow hooks break flow |
+| **`pre-push` stage** | Keeps every-commit hooks fast; validates before handoff |
 | **Use `-x` flag** | Stop on first failure; faster feedback |
-| **Exclude slow tests** | Mark integration/e2e tests with `@pytest.mark.slow` or similar |
+| **Meaningful tests** | Each test should have a clear, distinct intention |
 | **Parallel execution** | Use `--test-threads` or `--maxWorkers` for speed |
-| **CI for full suite** | Run complete test suite in CI, not pre-commit |
+| **CI for full suite** | Run integration/e2e tests in CI, not locally |
 
-### 12. Add Changelog Enforcement
+### 12. Add Changelog Enforcement (Optional)
 
-Optionally require CHANGELOG updates for user-facing changes. This integrates with the `update-changelog` skill.
-
-#### Basic Changelog Check
-
-```yaml
-  # Require CHANGELOG update for feat/fix commits
-  - repo: local
-    hooks:
-      - id: changelog-check
-        name: changelog check
-        language: system
-        entry: bash -c '
-          commit_msg=$(cat "$1");
-          if echo "$commit_msg" | grep -qE "^(feat|fix)(\(.+\))?!?:"; then
-            if ! git diff --cached --name-only | grep -q "CHANGELOG"; then
-              echo "ERROR: feat/fix commits require CHANGELOG update";
-              echo "       Add entry or use --no-verify to skip";
-              exit 1;
-            fi;
-          fi
-        '
-        args: [.git/COMMIT_EDITMSG]
-        stages: [commit-msg]
-        pass_filenames: false
-```
+Optionally require CHANGELOG updates for breaking changes. This integrates with the `update-changelog` skill. Uses `pre-push` stage so it doesn't block iterative commits.
 
 #### Changelog with Breaking Change Detection
 
@@ -509,19 +478,11 @@ Optionally require CHANGELOG updates for user-facing changes. This integrates wi
           fi
         '
         args: [.git/COMMIT_EDITMSG]
-        stages: [commit-msg]
+        stages: [pre-push]
         pass_filenames: false
 ```
 
-#### Changelog Hook Options
-
-| Mode | When Required | Use Case |
-|------|---------------|----------|
-| **feat/fix only** | `feat:` or `fix:` commits | Standard projects |
-| **Breaking changes** | `!:` or `BREAKING CHANGE:` | Critical changes only |
-| **All user-facing** | `feat|fix|perf|refactor:` | Strict enforcement |
-
-**Tip:** Allow bypass with `--no-verify` for WIP commits, but enforce in CI.
+**Tip:** For feat/fix changelog enforcement, handle at PR review time or with the `update-changelog` skill rather than blocking commits.
 
 ### 13. Add Static Analysis Hooks
 
@@ -690,35 +651,14 @@ Or run manually with parallelism:
 pre-commit run --all-files --show-diff-on-failure
 ```
 
-#### Skip Slow Hooks Locally
-
-For development, skip slow hooks but enforce in CI:
-
-```yaml
-  # Slow hook example — only run manually
-  - repo: local
-    hooks:
-      - id: slow-check
-        name: slow check
-        language: system
-        entry: ./scripts/slow-check.sh
-        stages: [manual]  # Only run with --hook-stage manual
-```
-
-Then in CI:
-
-```bash
-pre-commit run --all-files --hook-stage manual
-```
-
 #### Performance Benchmarks
 
-| Hook Type | Target Time | Optimization |
+| Hook Type | Target Time | Stage | Optimization |
 |-----------|-------------|--------------|
-| Formatting | < 1s | Use `--check` mode |
-| Linting | < 3s | Scope to changed files |
-| Type checking | < 5s | Incremental mode |
-| Testing | < 10s | Fast tests only |
+| Formatting | < 1s | pre-commit | Use `--check` mode |
+| Linting | < 3s | pre-commit | Scope to changed files |
+| Type checking | < 30s | pre-push | Runs during validation |
+| Testing | < 30s | pre-push | Runs during validation |
 
 ## Example: Full Multi-Language Configuration
 
@@ -799,9 +739,10 @@ repos:
         language: system
         entry: lizard -C 15 -w -x "*/tests/*" -x "*/migrations/*" -x "*/node_modules/*" -x "*/target/*" -x "*/dist/*"
         pass_filenames: false
+        stages: [pre-push]
         types_or: [rust, ts, tsx]
 
-  # TypeScript — type checking
+  # TypeScript — type checking (pre-push)
   - repo: local
     hooks:
       - id: tsc
@@ -821,25 +762,6 @@ repos:
         pass_filenames: false
         types_or: [ts, tsx]
 
-  # Changelog enforcement for feat/fix commits
-  - repo: local
-    hooks:
-      - id: changelog-check
-        name: changelog check
-        language: system
-        entry: bash -c '
-          commit_msg=$(cat "$1");
-          if echo "$commit_msg" | grep -qE "^(feat|fix)(\(.+\))?!?:"; then
-            if ! git diff --cached --name-only | grep -q "CHANGELOG"; then
-              echo "ERROR: feat/fix commits require CHANGELOG update";
-              exit 1;
-            fi;
-          fi
-        '
-        args: [.git/COMMIT_EDITMSG]
-        stages: [commit-msg]
-        pass_filenames: false
-
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
@@ -851,7 +773,7 @@ ci:
 
 ### Language-Specific Hooks
 
-| Language | Formatter | Linter | Complexity | Type Check | Testing |
+| Language | Formatter (commit) | Linter (commit) | Complexity (push) | Type Check (push) | Testing (push) |
 |----------|-----------|--------|------------|------------|---------|
 | Rust | `cargo fmt` | `cargo clippy` | lizard | N/A | `cargo test` |
 | TypeScript | `prettier` | `eslint` | lizard | `tsc --noEmit` | `jest` |
@@ -863,13 +785,13 @@ ci:
 
 ### Cross-Cutting Hooks
 
-| Hook | Purpose | When to Use |
-|------|---------|-------------|
-| `codespell` | Typos in comments/docs | All projects |
-| `sqlfluff` | SQL syntax and formatting | Projects with SQL files |
-| `depcheck` | Unused Node.js dependencies | Node.js projects |
-| `lizard` | Cyclomatic complexity | All projects |
-| `gitleaks` | Secret scanning | All projects |
+| Hook | Purpose | Stage | When to Use |
+|------|---------|-------|-------------|
+| `codespell` | Typos in comments/docs | commit | All projects |
+| `sqlfluff` | SQL syntax and formatting | commit | Projects with SQL files |
+| `depcheck` | Unused Node.js dependencies | commit | Node.js projects |
+| `lizard` | Cyclomatic complexity | push | All projects |
+| `gitleaks` | Secret scanning | commit | All projects |
 
 **Note:** Security checks (dependency audits, SAST, license compliance) belong in CI, not pre-commit. See section 6 for secret scanning which runs in pre-commit.
 
@@ -885,11 +807,11 @@ ci:
 
 5.  **CI integration**: Add the `ci:` section to enable pre-commit.ci or similar services for automated fixes.
 
-6.  **Keep hooks under 5 seconds**: Pre-commit runs on every commit. Slow hooks break developer flow. Move slow checks (full test suite, dependency audits) to CI.
+6.  **Keep pre-commit hooks under 5 seconds**: Pre-commit runs on every commit. Slow hooks break developer flow. Use `pre-push` stage for tests, type checks, and complexity.
 
 7.  **Use `fail_fast` sparingly**: Only for critical hooks like commit message format. Most hooks should run to completion to show all issues.
 
-8.  **Test before commit, not after**: Run fast tests in pre-commit, full suite in CI. This catches regressions early without blocking commits.
+8.  **Two-stage validation**: Fast checks (formatting, linting, secrets) on every commit. Thorough checks (tests, types, complexity) as `pre-push` hooks, triggered during the agent's validation pass.
 
 9.  **Security in layers**: Secret scanning (fast) in pre-commit, dependency audits and SAST (slow) in CI.
 
@@ -903,5 +825,5 @@ ci:
 | Merge conflicts | Run `pre-commit run check-merge-conflict --all-files` |
 | Warnings treated as errors | Add <code>&#124;&#124; true</code> to the entry for warnings-only hooks |
 | Tests fail on unrelated changes | Use `files:` to scope test hooks to changed directories |
-| Changelog check blocking WIP | Use `git commit --no-verify` to bypass |
-| Coverage threshold too strict | Lower threshold or exclude specific files with `--cov-config` |
+| Pre-push hooks not running | Ensure `pre-commit install --hook-type pre-push` was run |
+| Running pre-push hooks manually | `pre-commit run --all-files --hook-stage pre-push` |
